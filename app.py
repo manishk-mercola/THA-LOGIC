@@ -17,13 +17,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load engine
+# Load BOTH engines (population and optimal calibration)
 @st.cache_resource
-def load_engine():
-    config = load_config("config.yaml")
-    return THAEngine(config)
+def load_engines():
+    config_pop = load_config("config.yaml")
+    config_opt = load_config("config_optimal.yaml")
+    engine_pop = THAEngine(config_pop)
+    engine_opt = THAEngine(config_opt)
+    return engine_pop, engine_opt
 
-engine = load_engine()
+engine_pop, engine_opt = load_engines()
 
 # Custom CSS
 st.markdown("""
@@ -83,16 +86,21 @@ with st.sidebar:
 
     st.header("ℹ️ About THA")
     st.markdown("""
-    **True Health Age** is a scientifically-validated
-    biological age calculator using:
-    - Population-based calibration
-    - Gompertz mortality modeling
-    - 40 evidence-based questions
+    **True Health Age** uses dual calibration:
 
-    **Interpretation:**
-    - THA = Age → Average aging
-    - THA < Age → Slower aging
-    - THA > Age → Faster aging
+    **1. Population-Calibrated**
+    - Your health vs. average people
+    - Baseline = typical person
+
+    **2. Optimal-Calibrated**
+    - Your health vs. perfect standard
+    - Baseline = best possible health
+
+    Both show **YOUR health**, just
+    judged by different standards.
+
+    Based on Gompertz modeling + 40
+    evidence-based questions.
     """)
 
 # Initialize session state
@@ -107,12 +115,12 @@ tab1, tab2, tab3 = st.tabs(["📝 Questionnaire", "📊 Results", "🔍 What-If 
 with tab1:
     st.header("Complete Your Health Assessment")
 
-    # Chronological Age
+    # Chronological Age (default to 28 for optimal health demo)
     chron_age = st.number_input(
         "What is your chronological age?",
         min_value=18,
         max_value=100,
-        value=35,
+        value=28,
         help="Your actual age in years"
     )
 
@@ -123,11 +131,12 @@ with tab1:
         col1, col2 = st.columns(2)
 
         with col1:
+            # OPTIMAL DEFAULTS for 25-30 year old
             st.session_state.answers['height'] = st.number_input(
                 "Height (inches)",
                 min_value=48,
                 max_value=84,
-                value=70,
+                value=70,  # 5'10"
                 help="Your height in inches (1 inch = 2.54 cm)"
             )
 
@@ -135,7 +144,7 @@ with tab1:
                 "Weight (pounds)",
                 min_value=80,
                 max_value=400,
-                value=170,
+                value=160,  # BMI ~23 (optimal)
                 help="Your weight in pounds (1 lb = 0.45 kg)"
             )
 
@@ -143,13 +152,14 @@ with tab1:
                 "Waist circumference (inches)",
                 min_value=20,
                 max_value=60,
-                value=34,
+                value=32,  # Optimal range for male
                 help="Measure at belly button level"
             )
 
             gender = st.selectbox(
                 "Gender (for waist calculation)",
-                ["male", "female"]
+                ["male", "female"],
+                index=0
             )
             st.session_state.answers['waist_circumference'] = (waist, gender)
 
@@ -163,43 +173,44 @@ with tab1:
                 "Hours of sleep per night",
                 min_value=3.0,
                 max_value=12.0,
-                value=7.5,
+                value=8.0,  # Optimal sleep
                 step=0.5
             )
 
         with col2:
+            # OPTIMAL DEFAULTS (best bin = index 4)
             st.session_state.answers['stress_frequency_30d'] = st.select_slider(
                 "Stress frequency (past 30 days)",
                 options=[0, 1, 2, 3, 4],
-                value=2,
+                value=4,  # Almost never (BEST)
                 format_func=lambda x: ["Very often", "Often", "Sometimes", "Rarely", "Almost never"][x]
             )
 
             st.session_state.answers['energy_pattern'] = st.select_slider(
                 "Daytime energy pattern",
                 options=[0, 1, 2, 3, 4],
-                value=3,
+                value=4,  # Steady (BEST)
                 format_func=lambda x: ["Very low crashes", "Low most day", "Up and down", "Steady w/dips", "Steady"][x]
             )
 
             st.session_state.answers['rested_feeling'] = st.select_slider(
                 "Feel rested after sleep?",
                 options=[0, 1, 2, 3, 4],
-                value=3,
+                value=4,  # Fully refreshed (BEST)
                 format_func=lambda x: ["Never rested", "Rarely rested", "Sometimes rested", "Mostly rested", "Fully refreshed"][x]
             )
 
             st.session_state.answers['screen_time_before_bed'] = st.select_slider(
                 "Screen time 2h before bed",
                 options=[0, 1, 2, 3, 4],
-                value=2,
+                value=4,  # None (BEST)
                 format_func=lambda x: ["2+ hours", "1-2 hours", "30-60 min", "15-30 min", "None"][x]
             )
 
             st.session_state.answers['recent_illness'] = st.radio(
                 "Illness in past 2 weeks?",
                 [0, 1, 2],
-                index=2,
+                index=2,  # No (BEST)
                 format_func=lambda x: ["Yes, severe", "Yes, moderate", "No"][x]
             )
 
@@ -208,10 +219,11 @@ with tab1:
         col1, col2 = st.columns(2)
 
         with col1:
+            # OPTIMAL DEFAULTS
             st.session_state.answers['daytime_activity'] = st.select_slider(
                 "Daytime activity pattern",
                 options=[0, 1, 2, 3, 4, 5],
-                value=3,
+                value=4,  # Active job (BEST)
                 format_func=lambda x: ["Mostly sitting", "Mostly standing", "Light movement", "Regular walking", "Active job", "Very active"][x]
             )
 
@@ -219,7 +231,7 @@ with tab1:
                 "Strength training days/week",
                 min_value=0,
                 max_value=7,
-                value=2
+                value=5  # 5 days/week (optimal)
             )
 
         with col2:
@@ -227,14 +239,14 @@ with tab1:
                 "Cardio days/week",
                 min_value=0,
                 max_value=7,
-                value=3
+                value=6  # 6 days/week (optimal)
             )
 
             st.session_state.answers['eating_window_hours'] = st.slider(
                 "Daily eating window (hours)",
                 min_value=6,
                 max_value=18,
-                value=12,
+                value=10,  # 10 hours (time-restricted feeding)
                 help="Time between first and last meal"
             )
 
@@ -243,10 +255,11 @@ with tab1:
         col1, col2 = st.columns(2)
 
         with col1:
+            # OPTIMAL DEFAULTS (rightmost = best)
             st.session_state.answers['seed_oils_freq'] = st.select_slider(
                 "Seed oil consumption",
                 options=[0, 1, 2],
-                value=1,
+                value=2,  # Rarely/Never (BEST)
                 format_func=lambda x: ["Regularly", "Sometimes", "Rarely/Never"][x]
             )
 
@@ -449,52 +462,84 @@ with tab1:
 
 with tab2:
     if st.session_state.show_results:
-        # Calculate THA
-        result = engine.compute(float(chron_age), st.session_state.answers)
+        # Calculate with BOTH engines using YOUR ACTUAL ANSWERS
+        result_pop = engine_pop.compute(float(chron_age), st.session_state.answers)
+        result_opt = engine_opt.compute(float(chron_age), st.session_state.answers)
 
-        # Main result box
-        st.markdown(f"""
-        <div class="result-box">
-            <h2>Your True Health Age</h2>
-            <div class="result-number">{result.THA:.1f}</div>
-            <p style="font-size: 1.5rem;">Age Acceleration: {result.AgeAccel:+.1f} years</p>
-            <p style="font-size: 1.1rem; margin-top: 1rem;">
-                Chronological Age: {chron_age} years
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        # Dual Score Display - SAME FORMAT FOR BOTH
+        col1, col2 = st.columns(2)
 
-        # Interpretation
-        if result.AgeAccel < -2:
-            interpretation = "🌟 Exceptional! You're aging slower than average."
-            color = "success"
-        elif result.AgeAccel < 2:
-            interpretation = "✅ Good! You're aging at close to average rate."
-            color = "success"
-        elif result.AgeAccel < 5:
-            interpretation = "⚠️ Slightly accelerated aging. Room for improvement."
-            color = "warning"
-        elif result.AgeAccel < 8:
-            interpretation = "⚠️ Accelerated aging. Lifestyle changes recommended."
-            color = "warning"
-        else:
-            interpretation = "🚨 Highly accelerated aging. Consult healthcare provider."
-            color = "error"
+        with col1:
+            st.markdown(f"""
+            <div class="result-box">
+                <h3>True Health Age</h3>
+                <p style="font-size: 0.9rem; opacity: 0.9;">Population-Calibrated</p>
+                <div class="result-number">{result_pop.THA:.1f}</div>
+                <p style="font-size: 1.3rem;">Age Acceleration: {result_pop.AgeAccel:+.1f} years</p>
+                <p style="font-size: 1rem; margin-top: 1rem; opacity: 0.9;">
+                    vs. average {chron_age}-year-old
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
-        st.info(interpretation, icon="ℹ️")
+        with col2:
+            st.markdown(f"""
+            <div class="result-box" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <h3>True Health Age</h3>
+                <p style="font-size: 0.9rem; opacity: 0.9;">Optimal-Calibrated</p>
+                <div class="result-number">{result_opt.THA:.1f}</div>
+                <p style="font-size: 1.3rem;">Age Acceleration: {result_opt.AgeAccel:+.1f} years</p>
+                <p style="font-size: 1rem; margin-top: 1rem; opacity: 0.9;">
+                    vs. perfect health baseline
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Interpretation based on both scores
+        st.divider()
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("📊 Population Interpretation")
+            if result_pop.AgeAccel < -2:
+                interpretation = "🌟 Exceptional! You're aging slower than average."
+            elif result_pop.AgeAccel < 2:
+                interpretation = "✅ Good! You're aging at close to average rate."
+            elif result_pop.AgeAccel < 5:
+                interpretation = "⚠️ Slightly accelerated aging. Room for improvement."
+            elif result_pop.AgeAccel < 8:
+                interpretation = "⚠️ Accelerated aging. Lifestyle changes recommended."
+            else:
+                interpretation = "🚨 Highly accelerated aging. Consult healthcare provider."
+            st.info(interpretation)
+
+        with col2:
+            st.subheader("🎯 Optimal Standard")
+            if result_opt.AgeAccel < 0:
+                opt_interpretation = "🌟 Outstanding! You're younger than perfect health baseline."
+            elif result_opt.AgeAccel < 2:
+                opt_interpretation = "✅ Excellent! Very close to optimal health standard."
+            elif result_opt.AgeAccel < 5:
+                opt_interpretation = "👍 Good! Some room for optimization."
+            elif result_opt.AgeAccel < 8:
+                opt_interpretation = "⚠️ Fair. Significant room for improvement."
+            else:
+                opt_interpretation = "🚨 Needs work. Focus on key lifestyle changes."
+            st.info(opt_interpretation)
 
         st.divider()
 
-        # Domain contributions
-        st.header("📊 Domain Breakdown")
+        # Domain contributions (from population calibration)
+        st.header("📊 Domain Breakdown (Population)")
 
         col1, col2 = st.columns(2)
 
         with col1:
             # Domain bar chart
             domain_df = pd.DataFrame({
-                'Domain': list(result.domainYears.keys()),
-                'Years': list(result.domainYears.values())
+                'Domain': list(result_pop.domainYears.keys()),
+                'Years': list(result_pop.domainYears.values())
             })
             domain_df = domain_df.sort_values('Years', ascending=True)
 
@@ -518,7 +563,7 @@ with tab2:
         with col2:
             # Top contributors
             st.subheader("🎯 Top Contributors")
-            sorted_items = sorted(result.itemYears.items(), key=lambda x: abs(x[1]), reverse=True)
+            sorted_items = sorted(result_pop.itemYears.items(), key=lambda x: abs(x[1]), reverse=True)
 
             for i, (item_id, years) in enumerate(sorted_items[:8], 1):
                 if years != 0:
@@ -527,9 +572,9 @@ with tab2:
 
         st.divider()
 
-        # Improvement opportunities
-        st.header("💡 Improvement Opportunities")
-        gains = engine.one_step_gains_months(st.session_state.answers)
+        # Improvement opportunities (show from optimal perspective)
+        st.header("💡 Improvement Opportunities (Optimal Standard)")
+        gains = engine_opt.one_step_gains_months(st.session_state.answers)
         top_gains = sorted(gains.items(), key=lambda x: x[1], reverse=True)[:5]
 
         if any(g[1] > 0 for g in top_gains):
@@ -544,9 +589,12 @@ with tab2:
         st.divider()
         results_data = {
             'Chronological Age': chron_age,
-            'True Health Age': result.THA,
-            'Age Acceleration': result.AgeAccel,
-            **{f'Domain_{k}': v for k, v in result.domainYears.items()}
+            'THA (Population)': result_pop.THA,
+            'Age Acceleration (Population)': result_pop.AgeAccel,
+            'THA (Optimal)': result_opt.THA,
+            'Age Acceleration (Optimal)': result_opt.AgeAccel,
+            **{f'Domain_{k}_Pop': v for k, v in result_pop.domainYears.items()},
+            **{f'Domain_{k}_Opt': v for k, v in result_opt.domainYears.items()}
         }
         results_df = pd.DataFrame([results_data])
         csv = results_df.to_csv(index=False)
@@ -600,7 +648,7 @@ with tab3:
 
             if st.button("Calculate Impact", use_container_width=True):
                 if changes:
-                    what_if = engine.what_if(float(chron_age), st.session_state.answers, changes)
+                    what_if = engine_pop.what_if(float(chron_age), st.session_state.answers, changes)
 
                     with col2:
                         st.subheader("Projected Results")
