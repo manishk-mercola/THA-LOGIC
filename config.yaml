@@ -1,0 +1,786 @@
+algo_version: "THA-v2.1-PDF-EXACT"
+mrdt_years: 8.0
+age_clamp_years: 10
+
+# ==== Alignment metadata ====
+questionnaire:
+  id_namespace: "true_health_age_pdf_exact"
+  version_label: "FINAL REVISED TRUE HEALTH AGE 1"
+  order_locked: true
+  display_groups:
+    - id: "body_energy"
+      label: "Body & Energy"
+    - id: "movement_metabolism"
+      label: "Movement & Metabolism"
+    - id: "diet_gut"
+      label: "Diet & Gut Health"
+    - id: "environment_exposure"
+      label: "Environment and Exposure"
+    - id: "health_history"
+      label: "Health History and Support"
+    - id: "supplements"
+      label: "Supplements"
+
+copy:
+  result_term: "True Health Age"
+  accel_term: "Age Acceleration"
+  disclaimers:
+    non_medical: true
+    consent_required: true
+
+domains:
+  body:         { ln_cap_lo: -0.300, ln_cap_hi: 0.470 }
+  movement:     { ln_cap_lo: -0.262, ln_cap_hi: 0.405 }
+  diet:         { ln_cap_lo: -0.262, ln_cap_hi: 0.405 }
+  environment:  { ln_cap_lo: -0.140, ln_cap_hi: 0.336 }
+  history:      { ln_cap_lo: -0.095, ln_cap_hi: 0.510 }
+  supplements:  { ln_cap_lo: -0.140, ln_cap_hi: 0.095 }
+
+items:
+  # ===== BODY & ENERGY (Questions 1-10) =====
+
+  # Q1: What is your current height?
+  - id: height
+    source_label: "What is your current height?"
+    label: "Height"
+    domain: body
+    group: body_energy
+    order: 1
+    input_type: "numeric_with_units"
+    units: ["ft/in", "cm"]
+    # This will be used for BMI calculation, not directly scored
+    bins: ["N/A", "N/A"]
+    hr: [1.00, 1.00]
+    missing_hr: 1.00
+    note: "Used for BMI calculation"
+
+  # Q2: What is your current weight?
+  - id: weight
+    source_label: "What is your current weight?"
+    label: "Weight"
+    domain: body
+    group: body_energy
+    order: 2
+    input_type: "numeric_with_units"
+    units: ["lbs", "kg"]
+    # This will be used for BMI calculation, not directly scored
+    bins: ["N/A", "N/A"]
+    hr: [1.00, 1.00]
+    missing_hr: 1.00
+    note: "Used for BMI calculation"
+
+  # Q3: What is your waist circumference?
+  - id: waist_circumference
+    source_label: "What is your waist circumference (in inches or centimeters)? Please measure around your abdomen at the level of your belly button (not your pant line)."
+    label: "Waist circumference"
+    domain: body
+    group: body_energy
+    order: 3
+    input_type: "numeric_with_units"
+    units: ["in", "cm"]
+    # Scored based on gender-specific thresholds
+    bins: ["VeryHigh", "High", "Moderate", "Low", "Optimal"]
+    options_range:
+      # Male thresholds (inches): >43" = very high, 40-43" = high, 37-39" = moderate, 34-36" = low, <34" = optimal
+      # Female thresholds (inches): >38" = very high, 35-38" = high, 32-34" = moderate, 29-31" = low, <29" = optimal
+      # Will need gender-specific logic in engine
+      - { min: 43.01, max: inf, bin: 0, gender: "male" }
+      - { min: 40.0, max: 43.0, bin: 1, gender: "male" }
+      - { min: 37.0, max: 39.99, bin: 2, gender: "male" }
+      - { min: 34.0, max: 36.99, bin: 3, gender: "male" }
+      - { min: -inf, max: 33.99, bin: 4, gender: "male" }
+      - { min: 38.01, max: inf, bin: 0, gender: "female" }
+      - { min: 35.0, max: 38.0, bin: 1, gender: "female" }
+      - { min: 32.0, max: 34.99, bin: 2, gender: "female" }
+      - { min: 29.0, max: 31.99, bin: 3, gender: "female" }
+      - { min: -inf, max: 28.99, bin: 4, gender: "female" }
+    hr: [1.50, 1.25, 1.10, 1.00, 0.95]
+    missing_hr: 1.10
+
+  # Q4: Which applies right now? (Select all that apply)
+  - id: pregnancy_breastfeeding
+    source_label: "Which applies right now? (Select all that apply)"
+    label: "Pregnancy/Breastfeeding status"
+    domain: body
+    group: body_energy
+    order: 4
+    input_type: "multi_select"
+    multi_options:
+      - "Pregnant"
+      - "Breastfeeding"
+      - "Neither"
+      - "Prefer not to say"
+    bins: ["Pregnant/BF", "Neither", "No answer"]
+    # Scoring: Pregnant or breastfeeding noted but not scored (exclusion)
+    hr: [1.00, 1.00, 1.00]
+    missing_hr: 1.00
+    note: "May be used as exclusion criterion for certain analyses"
+
+  # Q5: In the past 30 days, how often did you feel stressed?
+  - id: stress_frequency_30d
+    source_label: "In the past 30 days, how often did you feel stressed?"
+    label: "Stress frequency (past 30 days)"
+    domain: body
+    group: body_energy
+    order: 5
+    bins: ["Very often", "Often", "Sometimes", "Rarely", "Almost never"]
+    options:
+      "Very often (nearly every day)": 0
+      "Often (most days)": 1
+      "Sometimes (a few times a week)": 2
+      "Rarely (about once a week)": 3
+      "Almost never (0-2 days)": 4
+    hr: [1.40, 1.25, 1.10, 1.00, 0.95]
+    missing_hr: 1.10
+
+  # Q6: On most days, how would you describe your daytime energy pattern?
+  - id: energy_pattern
+    source_label: "On most days, how would you describe your daytime energy pattern? (Select one)"
+    label: "Daytime energy pattern"
+    domain: body
+    group: body_energy
+    order: 6
+    bins: ["Very low crashes", "Low most day", "Up and down", "Steady w/dips", "Steady"]
+    options:
+      "Very low, with frequent crashes": 0
+      "Low most of the day": 1
+      "Up and down throughout the day": 2
+      "Steady with occasional dips": 3
+      "Steady throughout the day": 4
+    hr: [1.30, 1.18, 1.08, 1.02, 1.00]
+    missing_hr: 1.08
+
+  # Q7: After a typical night's sleep, how rested do you feel?
+  - id: rested_feeling
+    source_label: "After a typical night's sleep, how rested do you feel?"
+    label: "Rested feeling after sleep"
+    domain: body
+    group: body_energy
+    order: 7
+    bins: ["Never rested", "Rarely rested", "Sometimes rested", "Mostly rested", "Fully refreshed"]
+    options:
+      "Never feel rested (almost always wake unrefreshed)": 0
+      "Rarely rested (feel rested less than half the time)": 1
+      "Sometimes rested (about half the time)": 2
+      "Mostly rested (feel rested more often than not)": 3
+      "Fully refreshed (wake feeling restored most mornings)": 4
+    hr: [1.35, 1.20, 1.08, 1.00, 0.95]
+    missing_hr: 1.08
+
+  # Q8: On most nights, about how many hours do you sleep?
+  - id: sleep_hours
+    source_label: "On most nights, about how many hours do you sleep? [Enter your best estimate, like 7 or 7.5 hours]"
+    label: "Sleep hours per night"
+    domain: body
+    group: body_energy
+    order: 8
+    input_type: "numeric"
+    bins: ["<5h or >10h", "5-6h", "6-7h", "7-8h", "8-9h"]
+    options_range:
+      - { min: -inf, max: 4.99, bin: 0 }
+      - { min: 5.0, max: 5.99, bin: 1 }
+      - { min: 6.0, max: 6.99, bin: 2 }
+      - { min: 7.0, max: 8.99, bin: 3 }
+      - { min: 9.0, max: 10.0, bin: 3 }
+      - { min: 10.01, max: inf, bin: 0 }
+    hr: [1.30, 1.15, 1.05, 1.00, 1.02]
+    missing_hr: 1.05
+
+  # Q9: In the 2 hours before bed, how much time do you spend looking at screens?
+  - id: screen_time_before_bed
+    source_label: "In the 2 hours before bed, how much time do you spend looking at screens?"
+    label: "Screen time before bed"
+    domain: body
+    group: body_energy
+    order: 9
+    bins: [">2h", "1-2h", "30-60min", "<30min", "None"]
+    options:
+      "More than 2 hours": 0
+      "1-2 hours": 1
+      "30-60 minutes": 2
+      "Less than 30 minutes": 3
+      "None": 4
+    hr: [1.18, 1.10, 1.04, 1.00, 0.98]
+    missing_hr: 1.05
+
+  # Q10: In the past 2 weeks, have you had any illness?
+  - id: recent_illness
+    source_label: "In the past 2 weeks, have you had any illness (such as cold, flu, or other infection)?"
+    label: "Recent illness (past 2 weeks)"
+    domain: body
+    group: body_energy
+    order: 10
+    bins: ["Moderate/severe", "Mild", "No"]
+    options:
+      "Yes — moderate/severe (4+ days or needed medication/doctor visit)": 0
+      "Yes — mild (1–3 days, minor symptoms)": 1
+      "No": 2
+    hr: [1.08, 1.02, 1.00]
+    missing_hr: 1.00
+
+  # ===== MOVEMENT & METABOLISM (Questions 11-14) =====
+
+  # Q11: What best describes your typical daytime activity pattern?
+  - id: daytime_activity
+    source_label: "What best describes your typical daytime activity pattern? (Select one)"
+    label: "Typical daytime activity"
+    domain: movement
+    group: movement_metabolism
+    order: 11
+    bins: ["Mostly sitting", "Standing", "Light movement", "Moderate movement", "Heavy labor", "Varies"]
+    options:
+      "Mostly sitting (desk work, driving)": 0
+      "Mostly standing in place (e.g., cashier, line work)": 1
+      "Light movement throughout the day (walking, light housework, retail)": 2
+      "Moderate movement (caregiving, teaching, active job)": 3
+      "Heavy physical labor (construction, farming, manual labor)": 4
+      "Varies day to day": 2
+    hr: [1.30, 1.15, 1.05, 1.00, 0.92, 1.05]
+    missing_hr: 1.10
+
+  # Q12: In a typical week, how many days do you do strength or resistance training?
+  - id: strength_days_week
+    source_label: "In a typical week, how many days do you do strength or resistance training? [0–7]"
+    label: "Strength training days/week"
+    domain: movement
+    group: movement_metabolism
+    order: 12
+    input_type: "numeric"
+    bins: ["0", "1", "2", "3-4", "5-7"]
+    options_range:
+      - { min: 0, max: 0, bin: 0 }
+      - { min: 1, max: 1, bin: 1 }
+      - { min: 2, max: 2, bin: 2 }
+      - { min: 3, max: 4, bin: 3 }
+      - { min: 5, max: 7, bin: 4 }
+    hr: [1.20, 1.08, 1.00, 0.96, 0.94]
+    missing_hr: 1.05
+
+  # Q13: In a typical week, how many days do you do cardio or aerobic activity?
+  - id: cardio_days_week
+    source_label: "In a typical week, how many days do you do cardio or aerobic activity? [0–7]"
+    label: "Cardio/aerobic days/week"
+    domain: movement
+    group: movement_metabolism
+    order: 13
+    input_type: "numeric"
+    bins: ["0", "1", "2-3", "4-5", "6-7"]
+    options_range:
+      - { min: 0, max: 0, bin: 0 }
+      - { min: 1, max: 1, bin: 1 }
+      - { min: 2, max: 3, bin: 2 }
+      - { min: 4, max: 5, bin: 3 }
+      - { min: 6, max: 7, bin: 4 }
+    hr: [1.28, 1.12, 1.00, 0.94, 0.90]
+    missing_hr: 1.05
+
+  # Q14: On a typical day, how many hours is your eating window?
+  - id: eating_window_hours
+    source_label: "On a typical day, how many hours is your eating window? (e.g., 8 = only between noon–8pm) [Numeric entry]"
+    label: "Eating window (hours)"
+    domain: diet
+    group: movement_metabolism
+    order: 14
+    input_type: "numeric"
+    bins: [">16h", "14-16h", "12-14h", "10-12h", "8-10h"]
+    options_range:
+      - { min: 16.01, max: inf, bin: 0 }
+      - { min: 14.0, max: 16.0, bin: 1 }
+      - { min: 12.0, max: 13.99, bin: 2 }
+      - { min: 10.0, max: 11.99, bin: 3 }
+      - { min: -inf, max: 9.99, bin: 4 }
+    hr: [1.18, 1.10, 1.03, 1.00, 0.96]
+    missing_hr: 1.05
+
+  # ===== DIET & GUT HEALTH (Questions 15-27) =====
+
+  # Q15: On a typical day, how often do you eat meals with industrial seed oils?
+  - id: seed_oils_freq
+    source_label: "On a typical day, how often do you eat meals with industrial seed oils (canola, corn, soy, sunflower)?"
+    label: "Seed oils frequency"
+    domain: diet
+    group: diet_gut
+    order: 15
+    bins: ["Most meals", "1-2 meals/day", "Rarely/Never"]
+    options:
+      "Most meals": 0
+      "1–2 meals/day": 1
+      "Rarely/Never": 2
+    hr: [1.25, 1.10, 1.00]
+    missing_hr: 1.10
+
+  # Q16: When you cook or bake at home, which fat or oil do you use most often?
+  - id: home_cooking_fat
+    source_label: "When you cook or bake at home, which fat or oil do you use most often?"
+    label: "Home cooking fat/oil"
+    domain: diet
+    group: diet_gut
+    order: 16
+    bins: ["Vegetable oil", "Not sure", "Butter/ghee", "Olive oil", "Avocado oil"]
+    options:
+      "Vegetable oil": 0
+      "Not sure": 1
+      "Butter/ghee": 2
+      "Olive oil": 3
+      "Avocado oil": 4
+    hr: [1.22, 1.10, 1.02, 1.00, 0.98]
+    missing_hr: 1.10
+
+  # Q17: In the past 7 days, how often did you have fried foods?
+  - id: fried_foods_week
+    source_label: "In the past 7 days, how often did you have fried foods?"
+    label: "Fried foods (past 7 days)"
+    domain: diet
+    group: diet_gut
+    order: 17
+    bins: ["Most days", "Few times/week", "Once/week", "Never"]
+    options:
+      "Most days": 0
+      "Few times/week": 1
+      "Once/week": 2
+      "Never": 3
+    hr: [1.30, 1.15, 1.05, 1.00]
+    missing_hr: 1.10
+
+  # Q18: On most days, how many servings of fruit do you eat?
+  - id: fruit_servings_day
+    source_label: "On most days, how many servings of fruit do you eat? (1 serving = 1 medium fruit, 1 cup berries, or ½ cup dried)"
+    label: "Fruit servings per day"
+    domain: diet
+    group: diet_gut
+    order: 18
+    bins: ["None/rarely", "1/day", "2/day", "3+/day"]
+    options:
+      "None or rarely": 0
+      "1 serving per day": 1
+      "2 servings per day": 2
+      "3+ servings per day": 3
+    hr: [1.12, 1.05, 1.00, 0.98]
+    missing_hr: 1.05
+
+  # Q19: On most days, how many servings of vegetables do you eat?
+  - id: veg_servings_day
+    source_label: "On most days, how many servings of vegetables do you eat? (1 serving = 1 cup raw leafy greens or ½ cup cooked)"
+    label: "Vegetable servings per day"
+    domain: diet
+    group: diet_gut
+    order: 19
+    bins: ["None/rarely", "1/day", "2-3/day", "4-5/day", "6+/day"]
+    options:
+      "None or rarely": 0
+      "1 serving per day": 1
+      "2-3 servings per day": 2
+      "4-5 servings per day": 3
+      "6+ servings per day": 4
+    hr: [1.28, 1.15, 1.05, 1.00, 0.95]
+    missing_hr: 1.10
+
+  # Q20: In the past 7 days, how often did you have packaged or processed foods?
+  - id: packaged_foods_week
+    source_label: "In the past 7 days, how often did you have packaged or processed foods? (e.g., chips, cookies, deli meats, frozen meals, soda)"
+    label: "Packaged/processed foods (past 7 days)"
+    domain: diet
+    group: diet_gut
+    order: 20
+    bins: ["Often 5+", "Sometimes 2-4", "Rarely 0-1", "Not sure"]
+    options:
+      "Often (5+ time)": 0
+      "Sometimes (2 to 4 times)": 1
+      "Rarely (0-1 times)": 2
+      "Not sure": 1
+    hr: [1.30, 1.12, 1.00, 1.12]
+    missing_hr: 1.12
+
+  # Q21: When buying packaged foods, do you read ingredient labels?
+  - id: reading_labels
+    source_label: "When buying packaged foods, do you read ingredient labels to avoid seed oils/additives?"
+    label: "Reading ingredient labels"
+    domain: diet
+    group: diet_gut
+    order: 21
+    bins: ["Never", "Sometimes", "Always"]
+    options:
+      "Never (I rarely check or avoid those ingredients)": 0
+      "Sometimes (only for new or unfamiliar products)": 1
+      "Always (nearly every time)": 2
+    hr: [1.10, 1.03, 1.00]
+    missing_hr: 1.05
+
+  # Q22: In a typical week, how many servings of artificially sweetened foods or drinks?
+  - id: artificial_sweeteners_week
+    source_label: "In a typical week, how many servings of artificially sweetened foods or drinks do you have? (Examples: diet soda, sugar-free gum, protein bars, \"light\" yogurt, flavored waters with sucralose or aspartame. 1 serving = 1 can, bottle, bar, or single portion.)"
+    label: "Artificial sweeteners per week"
+    domain: diet
+    group: diet_gut
+    order: 22
+    bins: ["Daily 7+", "5-6/wk", "3-4/wk", "1-2/wk", "None", "Not sure"]
+    options:
+      "Daily (7+ servings/week)": 0
+      "5–6 servings per week": 1
+      "3–4 servings per week": 2
+      "1–2 servings per week": 3
+      "None": 4
+      "Not sure": 2
+    hr: [1.20, 1.12, 1.06, 1.02, 1.00, 1.06]
+    missing_hr: 1.06
+
+  # Q23: In a typical week, how many meals are from restaurants, takeout or delivery?
+  - id: restaurant_meals_week
+    source_label: "In a typical week, how many meals are from restaurants, takeout or delivery?"
+    label: "Restaurant/takeout meals per week"
+    domain: diet
+    group: diet_gut
+    order: 23
+    bins: ["5+ meals", "3-4 meals", "1-2 meals", "None", "Not sure"]
+    options:
+      "5+ meals": 0
+      "3–4 meals": 1
+      "1–2 meals": 2
+      "None": 3
+      "Not sure": 1
+    hr: [1.25, 1.12, 1.04, 1.00, 1.12]
+    missing_hr: 1.08
+
+  # Q24: How often do you eat fiber-rich whole foods?
+  - id: fiber_foods_freq
+    source_label: "How often do you eat fiber-rich whole foods (like vegetables, beans, nuts, seeds, or fermented foods)? Examples: broccoli, leafy greens, sauerkraut, lentils, not crackers or cereal."
+    label: "Fiber-rich whole foods frequency"
+    domain: diet
+    group: diet_gut
+    order: 24
+    bins: ["Rarely <3x/wk", "Few times/wk", "Once/day", "Multiple/day", "Not sure"]
+    options:
+      "Rarely (less than 3x per week)": 0
+      "A few times per week (3–6x)": 1
+      "Once per day": 2
+      "Multiple times per day": 3
+      "Not sure": 1
+    hr: [1.22, 1.10, 1.02, 1.00, 1.10]
+    missing_hr: 1.10
+
+  # Q25: In the past 7 days, how many bowel movements per day?
+  - id: bowel_movements_day
+    source_label: "In the past 7 days, how many bowel movements did you usually have per day?"
+    label: "Bowel movements per day"
+    domain: diet
+    group: diet_gut
+    order: 25
+    input_type: "numeric"
+    bins: ["0", "1", "2", "3", "4", "5", "6+"]
+    options_range:
+      - { min: 0, max: 0, bin: 0 }
+      - { min: 1, max: 1, bin: 1 }
+      - { min: 2, max: 2, bin: 2 }
+      - { min: 3, max: 3, bin: 3 }
+      - { min: 4, max: 4, bin: 4 }
+      - { min: 5, max: 5, bin: 5 }
+      - { min: 6, max: inf, bin: 6 }
+    hr: [1.15, 1.05, 1.00, 1.00, 1.02, 1.05, 1.10]
+    missing_hr: 1.05
+
+  # Q26: In the past 30 days, digestive issues?
+  - id: digestive_issues_30d
+    source_label: "In the past 30 days, on how many days did you experience bloating, gas, constipation, or diarrhea?"
+    label: "Digestive issues (past 30 days)"
+    domain: diet
+    group: diet_gut
+    order: 26
+    bins: ["16-30 Often", "8-15 Sometimes", "2-7 Occasionally", "0-1 Rarely"]
+    options:
+      "16–30 (Often)": 0
+      "8–15 (Sometimes)": 1
+      "2–7 (Occasionally)": 2
+      "0–1 (Rarely)": 3
+    hr: [1.25, 1.12, 1.04, 1.00]
+    missing_hr: 1.08
+
+  # Q27: In the past 12 months, have you taken antibiotics?
+  - id: antibiotics_12mo
+    source_label: "In the past 12 months, have you taken oral or IV antibiotics? (e.g., for infections, dental procedures, skin issues, etc.)"
+    label: "Antibiotic use (past 12 months)"
+    domain: diet
+    group: diet_gut
+    order: 27
+    bins: ["Multiple/long-term", "One short course", "No", "Not sure"]
+    options:
+      "Yes — multiple or long-term use": 0
+      "Yes — one short course (under 2 weeks)": 1
+      "No": 2
+      "Not sure": 1
+    hr: [1.18, 1.06, 1.00, 1.06]
+    missing_hr: 1.06
+
+  # ===== ENVIRONMENT AND EXPOSURE (Questions 28-36) =====
+
+  # Q28: In the past 30 days, have you smoked or vaped nicotine products?
+  - id: nicotine_past_30_days
+    source_label: "In the past 30 days, have you smoked or vaped nicotine products?"
+    label: "Nicotine use (past 30 days)"
+    domain: environment
+    group: environment_exposure
+    order: 28
+    bins: ["Daily+", "Weekly", "Occasionally", "Not at all"]
+    options:
+      "Daily or more": 0
+      "Weekly (1–2 times per week)": 1
+      "Occasionally (1–3 times total in the past 30 days)": 2
+      "No, not at all": 3
+    hr: [2.00, 1.50, 1.20, 1.00]
+    missing_hr: 1.10
+
+  # Q29: Have you smoked or vaped nicotine in the past — before the last 30 days?
+  - id: nicotine_history
+    source_label: "Have you smoked or vaped nicotine in the past — before the last 30 days?"
+    label: "Nicotine history (before past 30 days)"
+    domain: environment
+    group: environment_exposure
+    order: 29
+    bins: ["Still use occasionally", "Quit <12mo", "Quit >1y", "Never used"]
+    options:
+      "Yes — I still use occasionally (but not in the past 30 days)": 0
+      "Yes — quit within the past 12 months": 1
+      "Yes — quit more than 1 year ago": 2
+      "No, I've never used nicotine": 3
+    hr: [1.30, 1.15, 1.05, 1.00]
+    missing_hr: 1.05
+
+  # Q30: In the past 30 days, how many days did you drink alcohol?
+  - id: alcohol_days_30
+    source_label: "In the past 30 days, how many days did you drink alcohol?"
+    label: "Alcohol days (past 30 days)"
+    domain: environment
+    group: environment_exposure
+    order: 30
+    bins: ["16-30", "8-15", "3-7", "1-2", "0", "Prefer not"]
+    options:
+      "16–30": 0
+      "8–15": 1
+      "3–7": 2
+      "1–2": 3
+      "0": 4
+      "Prefer not to say": 2
+    hr: [1.35, 1.20, 1.08, 1.02, 1.00, 1.08]
+    missing_hr: 1.10
+
+  # Q31: On days you drank alcohol, how many drinks did you usually have?
+  - id: alcohol_drinks_per_day
+    source_label: "On days you drank alcohol, how many drinks did you usually have?"
+    label: "Drinks per drinking day"
+    domain: environment
+    group: environment_exposure
+    order: 31
+    bins: ["6+", "4-5", "2-3", "1 or less", "Prefer not", "Not sure"]
+    options:
+      "6+": 0
+      "4–5": 1
+      "2–3": 2
+      "1 or less": 3
+      "Prefer not to say": 2
+      "Not sure": 2
+    hr: [1.45, 1.25, 1.08, 1.00, 1.08, 1.08]
+    missing_hr: 1.10
+
+  # Q32: In the past 7 days, sunlight minutes per day?
+  - id: sunlight_minutes_day
+    source_label: "In the past 7 days, on average how many minutes per day were you in direct sunlight with bare skin (not through windows)?"
+    label: "Direct sunlight (minutes/day)"
+    domain: environment
+    group: environment_exposure
+    order: 32
+    bins: ["<5min", "5-15min", "15-30min", "30-60min", ">1h"]
+    options:
+      "Less than 5 minutes": 0
+      "5–15 minutes": 1
+      "15–30 minutes": 2
+      "30–60 minutes": 3
+      "Over 1 hour": 4
+    hr: [1.15, 1.08, 1.02, 1.00, 0.98]
+    missing_hr: 1.05
+
+  # Q33: How often do you drink from plastic bottles or store/heat food in plastic?
+  - id: plastic_exposure
+    source_label: "How often do you drink from plastic bottles or store/heat food in plastic?"
+    label: "Plastic exposure frequency"
+    domain: environment
+    group: environment_exposure
+    order: 33
+    bins: ["Daily+", "Most days", "1-3x/wk", "Rarely/never", "Not sure"]
+    options:
+      "Daily or more": 0
+      "Most days (4–6 times/week)": 1
+      "1–3 times per week": 2
+      "Rarely or never": 3
+      "Not sure": 1
+    hr: [1.18, 1.10, 1.04, 1.00, 1.10]
+    missing_hr: 1.08
+
+  # Q34: At night while you sleep, is your Wi-Fi router turned off?
+  - id: wifi_router_night
+    source_label: "At night while you sleep, is your Wi-Fi router turned off (unplugged or on a timer)?"
+    label: "Wi-Fi router at night"
+    domain: environment
+    group: environment_exposure
+    order: 34
+    bins: ["On all night", "Some nights", "Every night", "Not sure"]
+    options:
+      "No — it stays on all night": 0
+      "Yes — some nights": 1
+      "Yes — every night": 2
+      "Not sure": 0
+    hr: [1.06, 1.02, 1.00, 1.06]
+    missing_hr: 1.03
+
+  # Q35: Do you keep your phone in your bedroom while you sleep?
+  - id: phone_bedroom
+    source_label: "Do you keep your phone in your bedroom while you sleep?"
+    label: "Phone in bedroom while sleeping"
+    domain: environment
+    group: environment_exposure
+    order: 35
+    bins: ["Yes not airplane", "Sometimes", "Yes airplane", "No other room"]
+    options:
+      "Yes — not in airplane mode": 0
+      "Sometimes / Not sure": 1
+      "Yes — in airplane mode": 2
+      "No — it's in another room": 3
+    hr: [1.08, 1.04, 1.01, 1.00]
+    missing_hr: 1.04
+
+  # Q36: On most days, do you use wireless headphones or earbuds?
+  - id: wireless_earbuds
+    source_label: "On most days, do you use wireless headphones or earbuds? (Bluetooth/AirPods, not wired)"
+    label: "Wireless earbuds/headphones"
+    domain: environment
+    group: environment_exposure
+    order: 36
+    bins: [">4h/day", "1-4h/day", "<1h/day", "No/wired"]
+    options:
+      "Yes, more than 4 hours per day": 0
+      "Yes, 1-4 hours per day": 1
+      "Yes, less than 1 hour per day": 2
+      "No / use wired only": 3
+    hr: [1.12, 1.06, 1.02, 1.00]
+    missing_hr: 1.04
+
+  # ===== HEALTH HISTORY AND SUPPORT (Questions 37-38) =====
+
+  # Q37: Do any of your first-degree family members have these conditions?
+  - id: family_history
+    source_label: "Do any of your first-degree family members (parents, siblings, children) have any of the following? (Select all)"
+    label: "Family history"
+    domain: history
+    group: health_history
+    order: 37
+    input_type: "multi_select"
+    multi_options:
+      - "Thyroid disease"
+      - "Type 2 diabetes"
+      - "Autoimmune disease"
+      - "Heart disease"
+      - "High cholesterol"
+      - "Obesity"
+      - "Cancer"
+      - "None"
+      - "Not sure"
+    # Scoring based on count and severity
+    # HR will be calculated based on number and type of conditions selected
+    bins: ["Many 4+", "Several 2-3", "One", "None/Not sure"]
+    hr: [1.35, 1.18, 1.08, 1.00]
+    missing_hr: 1.10
+    scoring_weights:
+      "Thyroid disease": 0.05
+      "Type 2 diabetes": 0.12
+      "Autoimmune disease": 0.08
+      "Heart disease": 0.15
+      "High cholesterol": 0.06
+      "Obesity": 0.08
+      "Cancer": 0.12
+      "None": 0.00
+      "Not sure": 0.05
+
+  # Q38: Do you have any of the following health conditions?
+  - id: personal_conditions
+    source_label: "Do you have any of the following health conditions? (Select all)"
+    label: "Personal health conditions"
+    domain: history
+    group: health_history
+    order: 38
+    input_type: "multi_select"
+    multi_options:
+      - "High blood pressure"
+      - "High cholesterol"
+      - "Thyroid condition"
+      - "Autoimmune condition"
+      - "Digestive disorder"
+      - "Mental health condition"
+      - "Chronic pain"
+      - "None"
+      - "Other"
+    # Scoring based on count and severity
+    bins: ["Many 3+", "Two", "One", "None"]
+    hr: [1.60, 1.30, 1.12, 1.00]
+    missing_hr: 1.15
+    scoring_weights:
+      "High blood pressure": 0.20
+      "High cholesterol": 0.15
+      "Thyroid condition": 0.08
+      "Autoimmune condition": 0.12
+      "Digestive disorder": 0.10
+      "Mental health condition": 0.10
+      "Chronic pain": 0.12
+      "None": 0.00
+      "Other": 0.10
+
+  # ===== SUPPLEMENTS (Question 39) =====
+
+  # Q39: Are you currently taking any supplements, vitamins, or hormones?
+  - id: supplements_use
+    source_label: "Are you currently taking any supplements, vitamins, or hormones?"
+    label: "Supplement/vitamin/hormone use"
+    domain: supplements
+    group: supplements
+    order: 39
+    input_type: "multi_select_with_followup"
+    bins: ["No/not sure", "Occasional", "Regular few", "Regular many"]
+    options:
+      "No": 0
+      "Not sure": 0
+      "Yes — occasionally (a few times a week or less)": 1
+      "Yes — regularly (most days)": 2
+    hr: [1.05, 1.02, 1.00, 0.96]
+    missing_hr: 1.02
+    # Follow-up if "Yes" selected
+    follow_up:
+      question: "Which do you take regularly? (Select all that apply)"
+      multi_options:
+        - "Multivitamin"
+        - "Vitamin D"
+        - "Krill oil or omega-3"
+        - "Magnesium"
+        - "Probiotic"
+        - "Hormones"
+        - "Other supplements"
+        - "Not sure"
+      # If "Hormones" selected, another follow-up
+      hormone_followup:
+        question: "Which hormones are you taking? (Select all that apply)"
+        multi_options:
+          - "Thyroid medication (Synthroid, levothyroxine, Armour, etc.)"
+          - "Testosterone"
+          - "Estrogen/Progesterone (HRT, bioidentical hormones)"
+          - "Birth control pills/patch/ring"
+          - "Other hormone therapy"
+
+  # Q40: Free text - Additional health notes
+  - id: additional_notes
+    source_label: "Is there anything else you'd like us to know about your health? [Free text]"
+    label: "Additional health information"
+    domain: body
+    group: body_energy
+    order: 40
+    input_type: "free_text"
+    # Not scored, but collected for context
+    bins: ["N/A", "N/A"]
+    hr: [1.00, 1.00]
+    missing_hr: 1.00
+    note: "Free text field for additional context - not scored"
